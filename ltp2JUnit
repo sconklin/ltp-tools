@@ -6,6 +6,7 @@ from getopt                          import getopt, GetoptError
 from os                              import path
 from datetime                        import datetime, date
 from traceback                       import format_exc
+from xml.sax.saxutils                import escape
 import uuid
 
 from ktl.utils                       import stdo, error, dump
@@ -296,7 +297,7 @@ class Ltp():
 
                 outputtext = ""
                 for line in tr_output:
-                    outputtext = outputtext + line + '\n'
+                    outputtext = outputtext + escape(line) + '\n'
 
                 tcfailure = api.failureType(message='Test tag %s has failed' % tr_tag, type_ = 'Failure', valueOf_ = "%s" % outputtext)
                 tc.failure = tcfailure
