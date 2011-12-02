@@ -6,6 +6,8 @@ def test():
     properties = {}
     testcases = [] # each testcase in this list is a dictionary
 
+    tss = api.testsuites()
+
     # Add a test testsuite
     properties['prop1'] = 'foo'
     properties['prop2'] = 'bar'
@@ -41,6 +43,7 @@ def test():
     ts.system_out = 'This is stdout'
     ts.system_err = 'This is stderr'
 
-    ts.export(sys.stdout, 0)
+    tss.add_testsuite(ts)
+    tss.export(sys.stdout, 0)
 
 test()
