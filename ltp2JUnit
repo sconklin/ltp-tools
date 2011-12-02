@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 #
 
-from sys                                import argv, stdout
-from getopt                             import getopt, GetoptError
-from os                                 import path
-from datetime                           import datetime
+from sys                             import argv, stdout
+from getopt                          import getopt, GetoptError
+from os                              import path
+from datetime                        import datetime, date
+from traceback                       import format_exc
 import uuid
 
 from ktl.utils                       import stdo, error, dump
@@ -119,6 +120,7 @@ class Ltp():
         output file. When we reach the end of the header, return what we have.
         """
 
+        Dbg.enter("Ltp.parse_header")
         # List of items which are in the format MATCHTERM=VALUE, possibly quoted (to be stripped)
         # may not contain spaces
         equal_delimited_list = ['DISTRIB_ID', 'DISTRIB_RELEASE', 'DISTRIB_CODENAME', 'DISTRIB_DESCRIPTION']
@@ -140,15 +142,173 @@ class Ltp():
             if sep != '':
                 if tag in equal_delimited_list:
                     properties[tag] = therest.strip('"').strip()
+                continue
 
             for term in match_list:
                 if line.startswith(term):
                     lt = len(term)
                     properties[term.replace(' ', '_')] = line[lt:].strip()
+                    continue
+
+            # find the uname output to get the hostname and kernel version
+            l = line.strip()
+            if l.startswith('Linux') and l.endswith('GNU/Linux'):
+                properties['hostname'] = l.split()[1]
+                properties['kernel_version'] = l.split()[2]
 
         raise ValueError('EOF Before end of header')
         # create some data indicating a major failure
         # TODO
+
+    # parse_testcases
+    #
+    def parse_testcases(self, stream):
+        """
+        Parse information about each test in the ltp run from the log file
+        and create the testcase objects for the output. Keep track of totals
+        for erors and fails, and the total test time spent.
+        """
+        Dbg.enter("Ltp.parse_testcases")
+        total_tests = 0
+        total_time = 0
+        total_failures = 0
+        total_errors = 0
+        testcases = []
+
+        while True:
+            # Clear all the collection variables
+            tr_output = []
+            tr_duration = None
+            tr_termination_type = None
+            tr_termination_id = None
+            tr_corefile = ''
+            tr_cutime = 0
+            tr_cstime = 0
+            nextline = ''
+
+            line = stream.next()
+            # Tests start with '<<<test_start>>>' and end with '<<<test_end>>>'
+            # if next line is not a test start, we assume we're at the end of all tests
+            if not line.strip().startswith('<<<test_start>>>'):
+                # TODO calculate totals if needed
+                return total_tests, total_failures, total_errors, total_time, nextline, testcases
+
+            tr_output.append(line.strip())
+
+            for line in stream:
+                l = line.strip()
+                tr_output.append(l)
+                if l.startswith('<<<test_output>>>'):
+                    break
+                # collect information from the top of the test output
+                if l.startswith('tag'):
+                    tr_tag = l.split()[0].split('=')[1]
+                if l.startswith('cmdline'):
+                    tag, sep, therest = l.partition('=')
+                    tr_cmdline = therest.strip('"')
+                if l.startswith('contacts'):
+                    tag, sep, therest = l.partition('=')
+                    tr_contacts = therest.strip('"')
+                if l.startswith('analysis'):
+                    tag, sep, therest = l.partition('=')
+                    tr_analysis = therest
+
+            for line in stream:
+                l = line.strip()
+                tr_output.append(l)
+                if l.startswith('<<<execution_status>>>'):
+                    break
+
+            for line in stream:
+                l = line.strip()
+                tr_output.append(l)
+                if l.startswith('<<<test_end>>>'):
+                    break
+
+                # collect execution status
+                if l.startswith('initiation_status'):
+                    tag, sep, therest = line.partition('=')
+                    tr_initiation_status = therest.strip('"')
+                if l.startswith('duration') or l.startswith('cutime'):
+                    # lines containing multiple items
+                    # duration=0 termination_type=exited termination_id=0 corefile=no
+                    # cutime=0 cstime=0
+
+                    for item in l.split():
+                        tag, value = item.split('=')
+                        if tag == 'duration':
+                            tr_duration = value
+                        elif tag == 'termination_type':
+                            tr_termination_type = value
+                        elif tag == 'termination_id':
+                            tr_termination_id = value
+                        elif tag == 'corefile':
+                            tr_corefile = value
+                        elif tag == 'cutime':
+                            tr_cutime = value
+                        elif tag == 'cstime':
+                            tr_cstime = value
+                        else:
+                            pass
+
+            # Now package it all into a test object and update the totals
+            # things we collected (* ignored)
+            # tr_tag: a text tag for the test
+            # * tr_cmdline: The command line from the test
+            # * tr_contacts: unknown, always empty string
+            # tr_analysis: ['exit']
+            # tr_output: output text
+            # * tr_duration: time in seconds (often 0) - not the sum of cutime and cstime, don't know what it is
+            # tr_termination_type: [exited]
+            # tr_termination_id: nonzero means fail
+            # * tr_corefile: [no, yes]
+            # tr_cutime: user time in seconds (often 0)
+            # tr_cstime: system time in seconds (often 0)
+
+            # check for some things I don't understand well, error for not as expected
+            total_tests = total_tests + 1
+            if tr_analysis != 'exit':
+                tc = api.testcaseType()
+                tr_output.append('LOGFILTER: Interpreted as an error because (analysis != exit)')
+                iserror = True
+                tcerror = api.errorType(message='Unexpected value for analysis tag in test result', type_ = 'Logparse', valueOf_ = "analysis=%s" % tr_analysis)
+                tc.error = tcerror
+                tc.name = 'Logfilter'
+                tc.classname = 'logfilter'
+                tc.time = 0
+                total_errors = total_errors + 1
+                testcases.append(tc)
+            elif tr_termination_type != 'exited':
+                tc = api.testcaseType()
+                tr_output.append('LOGFILTER: Interpreted as an error because (termination_type != exited)')
+                isError = True
+                tcerror = api.errorType(message='Unexpected value for exited tag in test result', type_ = 'Logparse', valueOf_ = "exited=%s" % tr_exited)
+                tc.error = tcerror
+                tc.name = 'Logfilter'
+                tc.classname = 'logfilter'
+                tc.time = 0
+                total_errors = total_errors + 1
+                testcases.append(tc)
+            elif int(tr_termination_id) != 0:
+                tc = api.testcaseType()
+                tr_output.append('LOGFILTER: Interpreted as a failure because (termination_id != 0)')
+                total_failures = total_failures + 1
+
+                outputtext = ""
+                for line in tr_output:
+                    outputtext = outputtext + line + '\n'
+
+                tcfailure = api.failureType(message='Test tag %s has failed' % tr_tag, type_ = 'Failure', valueOf_ = "%s" % outputtext)
+                tc.failure = tcfailure
+                tc.name = tr_tag
+                tc.classname = 'ltp'
+                tc.time = int(tr_cutime) + int(tr_cstime)
+                total_time = total_time +  int(tr_cutime) + int(tr_cstime)
+                testcases.append(tc)
+            else:
+                # success, we don't append the testcase
+                pass
+
 
     # output_log_to_dict
     #
@@ -165,15 +325,42 @@ class Ltp():
             properties.add_property(tp)
         ts.set_properties(properties)
 
-        ts.timestamp = ''
-        ts.hostname = '' # use 'localhost' if we don't know
+        ts.timestamp = date.isoformat(date.today())
+        if 'hostname' in props:
+            ts.hostname = props['hostname']
+        else:
+            ts.hostname = 'localhost'
 
         # iterate over all test results in the log
+        testcases = []
+        try:
+            numtests, failures, errors, time, nextline, testcases = self.parse_testcases(stream)
+        except Exception as ex:
+            # TODO This is an error, probably unexpected EOF - report it
+            tc = api.testcaseType()
+            tcerror = api.errorType(message='LOGFILTER: Exception occurred while parsing tests', type_ = 'Logparse', valueOf_ = format_exc())
+            tc.error = tcerror
+            testcases.append(tc)
+            failures = 0
+            errors = 1
+            time = 0
+            nextline = ''
 
-        ts.failures = 0
-        ts.errors = 0
-        ts.time = 99
-        ts.tests = 99
+        # TODO deal with case of zero testcases, assume it's an error
+        if len(testcases) == 0:
+            tc = api.testcaseType()
+            tcerror = api.errorType(message='LOGFILTER: No test cases found while parsing log', type_ = 'Logparse', valueOf_ = 'nothing to show')
+            tc.error = tcerror
+            testcases.append(tc)
+        else:
+            for tc in testcases:
+                ts.add_testcase(tc)
+
+        ts.failures = failures
+        ts.errors = errors
+        ts.time = time
+        ts.tests = numtests
+
         return ts
 
 # LtpLogFilter
@@ -235,6 +422,7 @@ class LtpLogFilter():
             for fid in self.cfg['logs']:
                 with open(fid, 'r') as f:
                     ts = ltp.output_log_to_JUnit(f)
+                    # TODO Add the stdout to this
                     testsuites.add_testsuite(ts)
             testsuites.export(stdout, 0)
 
