@@ -2,17 +2,15 @@ import sys
 import JUnit_api as api
 
 def test():
-    testsuite = api.testsuiteType()
 
     properties = {}
     testcases = [] # each testcase in this list is a dictionary
 
     # Add a test testsuite
-
     properties['prop1'] = 'foo'
     properties['prop2'] = 'bar'
 
-    ts = api.testsuiteType(name='My Test Name')
+    ts = api.testsuite(name='My Test Name')
     #ts.name = "My Test Name"
     ts.failures = 1
     ts.errors = 1
