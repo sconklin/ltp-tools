@@ -36,3 +36,29 @@ initiation_status="ok"
 duration=0 termination_type=exited termination_id=0 corefile=no
 cutime=0 cstime=0
 <<<test_end>>>
+
+
+TODO IMPORTANT:
+
+See what's up with this test - is this a failure or not?
+
+<<<test_start>>>
+tag=Containers stime=1322671955
+cmdline="container_test.sh"
+contacts=""
+analysis=exit
+<<<test_output>>>
+ltp_clone_quick: Operation not permitted
+Uts namespaces not enabled in kernel.  Not running utsns tests.
+ipc namespaces not enabled in kernel.  Not running ipcns tests.
+do_clone_unshare_test: Operation not permitted
+Process id namespaces not enabled in kernel.  Not running pidns tests.
+Posix message queues or ipc namespaces not enabled in kernel.
+Not running mqns tests.
+check_netns_enabled    1  TFAIL  :  unshare syscall smoke test failed: errno=EPERM(1): Operation not permitted
+Network namespaces not enabled in kernel.  Not running netns tests.
+<<<execution_status>>>
+initiation_status="ok"
+duration=0 termination_type=exited termination_id=0 corefile=no
+cutime=0 cstime=0
+<<<test_end>>>
