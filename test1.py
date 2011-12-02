@@ -13,6 +13,13 @@ def test():
     properties['prop2'] = 'bar'
 
     ts = api.testsuite(name='My Test Name')
+    props = api.propertiesType()
+
+    for key, val in properties.items():
+        tp = api.propertyType(key, val)
+        props.add_property(tp)
+    ts.set_properties(props)
+
     #ts.name = "My Test Name"
     ts.failures = 1
     ts.errors = 1
