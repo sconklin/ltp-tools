@@ -1,0 +1,38 @@
+Parsing the stdout from ltp:
+
+from the top, extract these:
+
+DISTRIB_ID=Ubuntu
+DISTRIB_RELEASE=11.04
+DISTRIB_CODENAME=natty
+DISTRIB_DESCRIPTION="Ubuntu 11.04"
+
+Modules Loaded         usb_storage uas sha256_generic aesni_intel cryptd aes_i586 aes_generic binfmt_misc vboxnetadp vboxnetflt vboxdrv parport_pc ppdev dm_crypt vesafb snd_hda_codec_hdmi snd_hda_codec_realtek snd_usb_audio arc4 nvidia snd_hda_intel iwlagn snd_hda_codec snd_pcm uvcvideo snd_hwdep snd_usbmidi_lib iwlcore snd_seq_midi ldusb videodev pl2303 snd_rawmidi mac80211 joydev usbserial snd_seq_midi_event snd_seq cfg80211 snd_timer snd_seq_device snd shpchp soundcore snd_page_alloc lp parport usbhid hid firewire_ohci firewire_core ahci e1000e libahci crc_itu_t video
+
+Mem:       3966460    2232664    1733796          0      52348     719196
+
+possibly some things from the first CPU reported:
+vendor_id	: GenuineIntel
+cpu family	: 6
+model		: 42
+model name	: Intel(R) Core(TM) i7-2600 CPU @ 3.40GHz
+stepping	: 7
+cpu MHz		: 1600.000
+cache size	: 8192 KB
+
+*** End of properties - Begin Test results ***
+
+For each test:
+
+<<<test_start>>>
+tag=abort01 stime=1322601007
+cmdline="ulimit -c 1024;abort01"
+contacts=""
+analysis=exit
+<<<test_output>>>
+             whatever
+<<<execution_status>>>
+initiation_status="ok"
+duration=0 termination_type=exited termination_id=0 corefile=no
+cutime=0 cstime=0
+<<<test_end>>>

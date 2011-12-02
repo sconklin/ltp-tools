@@ -1,0 +1,1 @@
+cat cmdlist1.txt | sed "s/cmdline=\"//" | sed "s/\"$//"^C

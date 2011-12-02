@@ -1,0 +1,237 @@
+#!/usr/bin/env python
+#
+
+from sys                                import argv
+from getopt                             import getopt, GetoptError
+from os                                 import path
+from datetime                           import datetime
+import uuid
+
+from ktl.utils                       import stdo, error, dump
+from ktl.dbg                         import Dbg
+
+# Exit
+#
+class Exit():
+    """
+    If an error message has already been displayed and we want to just exit the app, this
+    exception is raised.
+    """
+    pass
+
+# CmdlineError
+#
+# The type of exception that will be raised by Cmdline.process() if there
+# are command line processing errors.
+#
+class CmdlineError(Exception):
+    # __init__
+    #
+    def __init__(self, error):
+        self.msg = error
+
+# Cmdline
+#
+class Cmdline:
+    """
+    Handle all the command line processing for the application.
+    """
+    # __init__
+    #
+    def __init__(self):
+        self.cfg = {}
+
+    # error
+    #
+    def error(self, e, defaults):
+        """
+        Simple helper which prints out an error message and then prints out the usage.
+        """
+        if e != '': error(e)
+        self.usage(defaults)
+
+    # usage
+    #
+    def usage(self, defaults):
+        """
+        Prints out the help text which explains the command line options.
+        """
+        stdo("    Usage:                                                                                   \n")
+        stdo("        %s <Options> <log-file>                                                              \n" % defaults['app_name'])
+        stdo("                                                                                             \n")
+        stdo("    Options:                                                                                 \n")
+        stdo("        --help           Prints this text.                                                   \n")
+        stdo("                                                                                             \n")
+        stdo("        --debug=<debug options>                                                              \n")
+        stdo("                         Performs additional output related to the option enabled and        \n")
+        stdo("                         the application defined support for the option.                     \n")
+        stdo("                                                                                             \n")
+        stdo("    Examples:                                                                                \n")
+        stdo("        %s ltp-results.log                                                                   \n" % defaults['app_name'])
+
+    # process
+    #
+    def process(self, argv):
+        """
+        This method is responsible for calling the getopt function to process the command
+        line. All parameters are processed into class variables for use by other methods.
+        """
+        cfg = {}
+        result = True
+        try:
+            optsShort = ''
+            optsLong  = ['help', 'debug=']
+            opts, args = getopt(argv[1:], optsShort, optsLong)
+
+            for opt, val in opts:
+                if (opt == '--help'):
+                    raise CmdlineError('')
+
+                elif opt in ('--debug'):
+                    cfg['debug'] = val.split(',')
+                    for level in cfg['debug']:
+                        if level not in Dbg.levels:
+                            Dbg.levels.append(level)
+
+            if result: # No errors yet
+
+                # At lease one source package must be specified.
+                #
+                if len(args) > 0:
+                    cfg['logs'] = args
+
+        except GetoptError, error:
+            raise CmdlineError(error)
+
+        return cfg
+
+# Ltp
+#
+class Ltp():
+
+    ltp_result_status = {
+        "TPASS" : "pass",
+        "TFAIL" : "fail"
+        #"TINFO" : "",
+        #"TWARN" : ""
+    }
+
+    # output_log_to_dict
+    #
+    @classmethod
+    def output_log_to_dict(cls, stream):
+        Dbg.enter("Ltp.output_log_to_dict")
+
+        retval = {}
+        retval['format'] = 'Dashboard Bundle Format 1.2'
+        retval['test_runs'] = []
+        test_run = {}
+        test_run['test_id'] = 'LTP'
+        test_run['analyzer_assigned_date'] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        test_run['analyzer_assigned_uuid'] = str(uuid.uuid1())
+        test_run['time_check_performed']   = False
+        test_results = []
+        for line in stream:
+            line = line.rstrip()
+            Dbg.verbose('line: "%s"\n' % line)
+            if ':' in line:
+                try:
+                    (lh, rh) = line.split(':', 1)
+
+                    (test, sublevel, status) = lh.split(None, 2)
+                    status = status.rstrip()
+                    if status not in cls.ltp_result_status:
+                        continue
+
+                    t = {}
+                    t['test_case_id'] = "%s.%s" % (test, sublevel)
+                    t['result']       = cls.ltp_result_status[status]
+
+                    test_results.append(t)
+
+                except ValueError:
+                    # Try to handle log lines in non-standard format
+                    #
+                    continue
+
+        test_run['test_results'] = test_results
+        retval['test_runs'].append(test_run)
+
+        Dbg.leave("Ltp.output_log_to_dict")
+        return retval
+
+# LtpLogFilter
+#
+class LtpLogFilter():
+    # initialize
+    #
+    def initialize(self):
+        """
+        A separate initialize that we can control when it gets called (not
+        when the object is instantiated).
+        """
+        defaults = {}                   # A dictionary of application defaults
+        defaults['app_name'] = argv[0]  # Used if an exception is thrown processing the command line (in the usage)
+        defaults['logs'] = []
+
+        try:
+            # Process the command line arguments, and any configuration file options. Make sure
+            # that any required parameters have been provided.
+            #
+            cmdline = Cmdline()
+            self.cfg = cmdline.process(argv)
+            self.verify_options(self.cfg)
+
+        except CmdlineError as e:
+            self.cmdline.error(e.msg, defaults)
+            raise Exit()
+
+        return
+
+    # verify_options
+    #
+    def verify_options(self, cfg):
+        """
+        Used to verify that all required parameters are present and correct.
+        """
+        retval = False
+
+        # At least one log file is required.
+        #
+        if len(cfg['logs']) == 0:
+            CmdlineError("At least one log file must be specified.")
+
+        for fid in cfg['logs']:
+            if not path.exists(fid):
+                error("The log file (%s) does not exist." % (fid))
+                raise Exit
+
+        return
+
+    # main
+    #
+    def main(self):
+        try:
+            self.initialize()
+
+            for fid in self.cfg['logs']:
+                with open(fid, 'r') as f:
+                    log = Ltp.output_log_to_dict(f)
+                    dump(log)
+
+        # Handle the user presses <ctrl-C>.
+        #
+        except KeyboardInterrupt:
+            pass
+
+        except Exit:
+            pass
+
+        return
+
+if __name__ == '__main__':
+    app = LtpLogFilter()
+    app.main()
+
+# vi:set ts=4 sw=4 expandtab:
+
