@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 
-from sys                                import argv
+from sys                                import argv, stdout
 from getopt                             import getopt, GetoptError
 from os                                 import path
 from datetime                           import datetime
@@ -9,6 +9,8 @@ import uuid
 
 from ktl.utils                       import stdo, error, dump
 from ktl.dbg                         import Dbg
+
+import JUnit_api as api
 
 # Exit
 #
@@ -153,11 +155,26 @@ class Ltp():
     def output_log_to_JUnit(self, stream):
         Dbg.enter("Ltp.output_log_to_JUnit")
 
-
+        ts = api.testsuite(name='Ubuntu LTP tests')
         # get the properties we want from the log before we parse any tests
         props = self.parse_header(stream)
-        print props
-        return
+
+        properties = api.propertiesType()
+        for key, val in props.items():
+            tp = api.propertyType(key, val)
+            properties.add_property(tp)
+        ts.set_properties(properties)
+
+        ts.timestamp = ''
+        ts.hostname = '' # use 'localhost' if we don't know
+
+        # iterate over all test results in the log
+
+        ts.failures = 0
+        ts.errors = 0
+        ts.time = 99
+        ts.tests = 99
+        return ts
 
 # LtpLogFilter
 #
@@ -213,11 +230,13 @@ class LtpLogFilter():
         try:
             self.initialize()
 
+            ltp = Ltp()
+            testsuites = api.testsuites()
             for fid in self.cfg['logs']:
                 with open(fid, 'r') as f:
-                    ltp = Ltp()
-                    ltp.output_log_to_JUnit(f)
-                    #dump(log)
+                    ts = ltp.output_log_to_JUnit(f)
+                    testsuites.add_testsuite(ts)
+            testsuites.export(stdout, 0)
 
         # Handle the user presses <ctrl-C>.
         #
