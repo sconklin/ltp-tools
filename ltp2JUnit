@@ -423,8 +423,16 @@ class LtpLogFilter():
             for fid in self.cfg['logs']:
                 with open(fid, 'r') as f:
                     ts = ltp.output_log_to_JUnit(f)
-                    # TODO Add the stdout to this
-                    testsuites.add_testsuite(ts)
+                # TODO Add the stdout to this by re-reading
+                f.close()
+                outputtext = ''
+                with open(fid, 'r') as f:
+                    for line in f:
+                        #print line
+                        outputtext = outputtext + escape(line.strip() + '\n')
+                        #print outputtext
+                    ts.set_system_out(outputtext)
+                testsuites.add_testsuite(ts)
             testsuites.export(stdout, 0)
 
         # Handle the user presses <ctrl-C>.
