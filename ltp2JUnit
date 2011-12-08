@@ -71,6 +71,10 @@ class Cmdline:
         stdo("                         Performs additional output related to the option enabled and        \n")
         stdo("                         the application defined support for the option.                     \n")
         stdo("                                                                                             \n")
+        stdo("        --raise                                                                              \n")
+        stdo("                         Raise exceptions encountered during processing                      \n")
+        stdo("                         (default behavior is to include them in the xml output)             \n")
+        stdo("                                                                                             \n")
         stdo("    Examples:                                                                                \n")
         stdo("        %s ltp-results.log                                                                   \n" % defaults['app_name'])
 
@@ -85,12 +89,15 @@ class Cmdline:
         result = True
         try:
             optsShort = ''
-            optsLong  = ['help', 'debug=']
+            optsLong  = ['help', 'debug=', 'raise']
             opts, args = getopt(argv[1:], optsShort, optsLong)
 
             for opt, val in opts:
                 if (opt == '--help'):
                     raise CmdlineError('')
+
+                elif (opt == '--raise'):
+                    cfg['raise'] = True
 
                 elif opt in ('--debug'):
                     cfg['debug'] = val.split(',')
@@ -117,6 +124,7 @@ class Ltp():
     # __init__
     #
     def __init__(self):
+        self.raiseExceptions = False
         self.all_bytes = maketrans('', '')
         return
 
@@ -356,6 +364,8 @@ class Ltp():
         try:
             numtests, failures, errors, time, nextline, testcases = self.parse_testcases(stream)
         except Exception as ex:
+            if self.raiseExceptions:
+                raise
             # TODO This is an error, probably unexpected EOF - report it
             tc = api.testcaseType()
             tc.name = 'Logfilter'
@@ -444,6 +454,8 @@ class LtpLogFilter():
             self.initialize()
 
             ltp = Ltp()
+            if 'raise' in self.cfg:
+                ltp.raiseExceptions = True
             testsuites = api.testsuites()
             for fid in self.cfg['logs']:
                 with open(fid, 'r') as f:
