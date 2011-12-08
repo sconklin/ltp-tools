@@ -1,0 +1,3 @@
+./configure -prefix=$PWD/ubuntu
+make
+make install
