@@ -6,6 +6,7 @@ from getopt                          import getopt, GetoptError
 from os                              import path
 from datetime                        import datetime, date
 from traceback                       import format_exc
+from string                          import maketrans
 from xml.sax.saxutils                import escape
 import uuid
 
@@ -113,6 +114,19 @@ class Cmdline:
 #
 class Ltp():
 
+    # __init__
+    #
+    def __init__(self):
+        self.all_bytes = maketrans('', '')
+        return
+
+    # escape_string
+    #
+    def escape_string(self, instr):
+        outstr = instr.translate(self.all_bytes, self.all_bytes[:32])  # All bytes < 32 are deleted (second argument)
+        return escape(outstr)
+
+
     # parse_header
     #
     def parse_header(self, stream):
@@ -206,7 +220,7 @@ class Ltp():
                     tr_tag = l.split()[0].split('=')[1]
                 if l.startswith('cmdline'):
                     tag, sep, therest = l.partition('=')
-                    tr_cmdline = therest.strip('"')
+                    tr_cmdline = self.escape_string(therest.strip('"'))
                 if l.startswith('contacts'):
                     tag, sep, therest = l.partition('=')
                     tr_contacts = therest.strip('"')
@@ -215,7 +229,7 @@ class Ltp():
                     tr_analysis = therest
 
             for line in stream:
-                l = line.strip()
+                l = self.escape_string(line.strip())
                 tr_output.append(l)
                 if l.startswith('<<<execution_status>>>'):
                     break
@@ -279,11 +293,11 @@ class Ltp():
                 tc.time = 0
                 total_errors = total_errors + 1
                 testcases.append(tc)
-            elif tr_termination_type != 'exited':
+            elif tr_termination_type not in ['exited', 'signaled']:
                 tc = api.testcaseType()
                 tr_output.append('LOGFILTER: Interpreted as an error because (termination_type != exited)')
                 isError = True
-                tcerror = api.errorType(message='Unexpected value for exited tag in test result', type_ = 'Logparse', valueOf_ = "exited=%s" % tr_exited)
+                tcerror = api.errorType(message='Unexpected value for termination type tag in test result', type_ = 'Logparse', valueOf_ = "termination_type=%s" % tr_termination_type)
                 tc.error = tcerror
                 tc.name = 'Logfilter'
                 tc.classname = 'logfilter'
@@ -297,7 +311,7 @@ class Ltp():
 
                 outputtext = ""
                 for line in tr_output:
-                    outputtext = outputtext + escape(line) + '\n'
+                    outputtext = outputtext + self.escape_string(line) + '\n'
 
                 tcfailure = api.failureType(message='Test tag %s has failed' % tr_tag, type_ = 'Failure', valueOf_ = "%s" % outputtext)
                 tc.failure = tcfailure
@@ -334,11 +348,19 @@ class Ltp():
 
         # iterate over all test results in the log
         testcases = []
+        numtests = 0
+        failures = 0
+        errors = 0
+        time = 0
+        nextline = ''
         try:
             numtests, failures, errors, time, nextline, testcases = self.parse_testcases(stream)
         except Exception as ex:
             # TODO This is an error, probably unexpected EOF - report it
             tc = api.testcaseType()
+            tc.name = 'Logfilter'
+            tc.classname = 'logfilter'
+            tc.time = 0
             tcerror = api.errorType(message='LOGFILTER: Exception occurred while parsing tests', type_ = 'Logparse', valueOf_ = format_exc())
             tc.error = tcerror
             testcases.append(tc)
@@ -350,6 +372,9 @@ class Ltp():
         # TODO deal with case of zero testcases, assume it's an error
         if len(testcases) == 0:
             tc = api.testcaseType()
+            tc.name = 'Logfilter'
+            tc.classname = 'logfilter'
+            tc.time = 0
             tcerror = api.errorType(message='LOGFILTER: No test cases found while parsing log', type_ = 'Logparse', valueOf_ = 'nothing to show')
             tc.error = tcerror
             testcases.append(tc)
@@ -429,7 +454,7 @@ class LtpLogFilter():
                 with open(fid, 'r') as f:
                     for line in f:
                         #print line
-                        outputtext = outputtext + escape(line.strip() + '\n')
+                        outputtext = outputtext + ltp.escape_string(line.strip() + '\n')
                         #print outputtext
                     ts.set_system_out(outputtext)
                 testsuites.add_testsuite(ts)
