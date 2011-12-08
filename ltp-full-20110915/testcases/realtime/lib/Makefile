@@ -22,7 +22,8 @@
 
 top_srcdir		?= ../../..
 
-include $(top_srcdir)/../config.mk
+include $(top_srcdir)/include/mk/env_pre.mk
+include $(abs_srcdir)/../config.mk
 
 CFLAGS			+= -D_GNU_SOURCE
 
