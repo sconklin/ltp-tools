@@ -209,6 +209,7 @@ class Ltp():
             tr_cstime = 0
             nextline = ''
 
+            # read the first line of testcases
             line = stream.next()
             # Tests start with '<<<test_start>>>' and end with '<<<test_end>>>'
             # if next line is not a test start, we assume we're at the end of all tests
@@ -218,6 +219,7 @@ class Ltp():
 
             tr_output.append(line.strip())
 
+            # iterate over the first test case part
             for line in stream:
                 l = line.strip()
                 tr_output.append(l)
@@ -237,7 +239,7 @@ class Ltp():
                     tr_analysis = therest
 
             for line in stream:
-                l = self.escape_string(line.strip())
+                l = line.strip()
                 tr_output.append(l)
                 if l.startswith('<<<execution_status>>>'):
                     break
@@ -331,7 +333,6 @@ class Ltp():
             else:
                 # success, we don't append the testcase
                 pass
-
 
     # output_log_to_dict
     #
@@ -465,9 +466,7 @@ class LtpLogFilter():
                 outputtext = ''
                 with open(fid, 'r') as f:
                     for line in f:
-                        #print line
                         outputtext = outputtext + ltp.escape_string(line.strip() + '\n')
-                        #print outputtext
                     ts.set_system_out(outputtext)
                 testsuites.add_testsuite(ts)
             testsuites.export(stdout, 0)
