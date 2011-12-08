@@ -463,10 +463,11 @@ class LtpLogFilter():
                     ts = ltp.output_log_to_JUnit(f)
                 # TODO Add the stdout to this by re-reading
                 f.close()
-                outputtext = ''
+                outputtext = '<![CDATA['
                 with open(fid, 'r') as f:
                     for line in f:
-                        outputtext = outputtext + ltp.escape_string(line.strip() + '\n')
+                        outputtext = outputtext + ltp.escape_string(line.strip()) + '\n'
+                    outputtext = outputtext + ']]>'
                     ts.set_system_out(outputtext)
                 testsuites.add_testsuite(ts)
             testsuites.export(stdout, 0)
