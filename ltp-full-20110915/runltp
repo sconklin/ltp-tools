@@ -739,13 +739,14 @@ main()
          done
     fi
 
-    [ ! -z "$QUIET_MODE" ] && { echo "INFO: Test start time: $(date)" ; }
-    PAN_COMMAND="${LTPROOT}/bin/ltp-pan $QUIET_MODE -e -S $INSTANCES $DURATION -a $$ \
-    -n $$ $PRETTY_PRT -f ${TMP}/alltests $LOGFILE $OUTPUTFILE $FAILCMDFILE"
-    echo "COMMAND:    $PAN_COMMAND"
-    if [ ! -z "$TAG_RESTRICT_STRING" ] ; then
-      echo "INFO: Restricted to $TAG_RESTRICT_STRING"
-    fi
+    # -spc- removing all of this, it does nothing except confuse
+    #[ ! -z "$QUIET_MODE" ] && { echo "INFO: Test start time: $(date)" ; }
+    #PAN_COMMAND="${LTPROOT}/bin/ltp-pan $QUIET_MODE -e -S $INSTANCES $DURATION -a $$ \
+    #-n $$ $PRETTY_PRT -f ${TMP}/alltests $LOGFILE $OUTPUTFILE $FAILCMDFILE"
+    #echo "COMMAND:    $PAN_COMMAND"
+    #if [ ! -z "$TAG_RESTRICT_STRING" ] ; then
+    #  echo "INFO: Restricted to $TAG_RESTRICT_STRING"
+    #fi
     #$PAN_COMMAND #Duplicated code here, because otherwise if we fail, only "PAN_COMMAND" gets output
     
     ## Display the Output/Log/Failed/HTML file names here
@@ -819,9 +820,12 @@ main()
 		cp ${TMP}/alltests.tmp ${TMP}/alltests
 		rm -rf ${TMP}/alltests.tmp
 	fi
+    # -spc- We need to point outside the bin directory for output and tmp files
+    AARG="$PWD.aaa"
+    NARG="$PWD.nnn"
     # Some tests need to run inside the "bin" directory.
     cd "${LTPROOT}/testcases/bin"
-    "${LTPROOT}/bin/ltp-pan" $QUIET_MODE -e -S $INSTANCES $DURATION -a $$ -n $$ $PRETTY_PRT -f ${TMP}/alltests $LOGFILE $OUTPUTFILE $FAILCMDFILE
+    "${LTPROOT}/bin/ltp-pan" $QUIET_MODE -e -S $INSTANCES $DURATION -a $AARG -n $NARG $PRETTY_PRT -f ${TMP}/alltests $LOGFILE $OUTPUTFILE $FAILCMDFILE
      
     if [ $? -eq 0 ]; then
       echo "INFO: ltp-pan reported all tests PASS"
