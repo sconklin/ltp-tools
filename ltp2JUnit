@@ -331,8 +331,16 @@ class Ltp():
                 total_time = total_time +  int(tr_cutime) + int(tr_cstime)
                 testcases.append(tc)
             else:
-                # success, we don't append the testcase
-                pass
+                # success, we append the testcase without an error or fail
+                tc = api.testcaseType()
+                outputtext = ""
+                for line in tr_output:
+                    outputtext = outputtext + self.escape_string(line) + '\n'
+                tc.name = tr_tag
+                tc.classname = 'ltp'
+                tc.time = int(tr_cutime) + int(tr_cstime)
+                total_time = total_time +  int(tr_cutime) + int(tr_cstime)
+                testcases.append(tc)
 
     # output_log_to_dict
     #
@@ -423,7 +431,7 @@ class LtpLogFilter():
             self.verify_options(self.cfg)
 
         except CmdlineError as e:
-            self.cmdline.error(e.msg, defaults)
+            cmdline.error(e.msg, defaults)
             raise Exit()
 
         return
