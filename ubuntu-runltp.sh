@@ -9,10 +9,10 @@ BASEDIR="/src/ltp-tools"
 
 TESTCASES=$*
 echo "TESTCASES = $TESTCASES"
-if [ -s $TESTCASES ]; then
-    $TCARG="-f $TESTCASES";
+if [ -z "$TESTCASES" ]; then
+    TCARG=""
 else
-    $TCARG=""
+    TCARG="-f $TESTCASES"
 fi
 
 echo "TCARG = $TCARG"
