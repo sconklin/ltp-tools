@@ -3,6 +3,8 @@ Notes about specific tests:
 kill10 seen to apparently hang twice, for multiple hours
    killall kill10 allows test cases to continue
 
+test tagged "controllers" hung
+test ksm01 hangs
 
 TODO IMPORTANT:
 
